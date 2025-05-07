@@ -11,7 +11,7 @@ A TypeScript library for calculating redemption values of concentrated liquidity
 ## Installation
 
 ```bash
-npm install @stabilis/conc-liq-getter
+npm install @stabilis/c9-shape-liquidity-getter
 ```
 
 ## Usage
@@ -20,7 +20,7 @@ npm install @stabilis/conc-liq-getter
 import {
   getRedemptionValue,
   getRedemptionValues,
-} from "@stabilis/conc-liq-getter";
+} from "@stabilis/c9-shape-liquidity-getter";
 
 // Get redemption value for a single NFT
 const result = await getRedemptionValue({
@@ -52,7 +52,7 @@ The library throws specific error types:
 
 - `ValidationError`: For invalid input parameters
 - `ComponentError`: For issues with the C9 component
-- `NFTError`: For NFT-related issues
+- `NFTError`: For Shape Liq NFT-related issues
 - `DataError`: For data format issues
 - `NetworkError`: For API request failures
 
