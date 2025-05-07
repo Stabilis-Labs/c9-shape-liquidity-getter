@@ -1,4 +1,4 @@
-# Concentrated Liquidity Calculator
+# C9 Shape Liquidity Getter
 
 A TypeScript library for calculating redemption values of concentrated liquidity positions on the Radix network.
 
@@ -7,64 +7,54 @@ A TypeScript library for calculating redemption values of concentrated liquidity
 - Calculate redemption values (X and Y tokens) for a single NFT position
 - Batch calculate redemption values for multiple NFT positions
 - Precise decimal calculations using decimal.js
-- Full TypeScript support
-- Enterprise-grade error handling and logging
 
 ## Installation
 
 ```bash
-npm install @stabilis/conc-liq-calculator
+npm install @stabilis/conc-liq-getter
 ```
 
 ## Usage
 
-### Single NFT Position
-
 ```typescript
-import { getRedemptionValue } from "@stabilis/conc-liq-calculator";
+import {
+  getRedemptionValue,
+  getRedemptionValues,
+} from "@stabilis/conc-liq-getter";
 
-async function example() {
-  const input = {
-    componentAddress: "component_rdx1...", // Your component address
-    nftId: "{your-nft-id}", // Your NFT ID
-    stateVersion: 12345678, // Optional: specific state version
-  };
+// Get redemption value for a single NFT
+const result = await getRedemptionValue({
+  componentAddress: "component_rdx1...", // C9 pool component address
+  nftId: "{...}", // NFT ID
+  stateVersion: 123456789, // optional
+});
 
-  const result = await getRedemptionValue(input);
-  if (result) {
-    console.log("X Token Amount:", result.xToken);
-    console.log("Y Token Amount:", result.yToken);
-  }
+console.log("X Token Amount:", result.xToken);
+console.log("Y Token Amount:", result.yToken);
+
+// Get redemption values for multiple NFTs
+const results = await getRedemptionValues({
+  componentAddress: "component_rdx1...",
+  nftIds: ["{...}", "{...}"],
+  stateVersion: 123456789, // optional
+});
+
+for (const [nftId, value] of Object.entries(results)) {
+  console.log(`NFT ${nftId}:`);
+  console.log("X Token Amount:", value.xToken);
+  console.log("Y Token Amount:", value.yToken);
 }
 ```
 
-### Multiple NFT Positions
+## Error Handling
 
-```typescript
-import { getRedemptionValues } from "@stabilis/conc-liq-calculator";
+The library throws specific error types:
 
-async function example() {
-  const input = {
-    componentAddress: "component_rdx1...", // Your component address
-    nftIds: [
-      // Array of NFT IDs
-      "{first-nft-id}",
-      "{second-nft-id}",
-      "{third-nft-id}",
-    ],
-    stateVersion: 12345678, // Optional: specific state version
-  };
-
-  const results = await getRedemptionValues(input);
-
-  // Results are mapped by NFT ID
-  Object.entries(results).forEach(([nftId, values]) => {
-    console.log(`NFT ${nftId}:`);
-    console.log("  X Token Amount:", values.xToken);
-    console.log("  Y Token Amount:", values.yToken);
-  });
-}
-```
+- `ValidationError`: For invalid input parameters
+- `ComponentError`: For issues with the C9 component
+- `NFTError`: For NFT-related issues
+- `DataError`: For data format issues
+- `NetworkError`: For API request failures
 
 ## API Reference
 
@@ -74,13 +64,13 @@ async function example() {
 interface RedemptionValueInput {
   componentAddress: string;
   nftId: string;
-  stateVersion?: number;
+  stateVersion: number;
 }
 
 interface RedemptionValuesInput {
   componentAddress: string;
   nftIds: string[];
-  stateVersion?: number;
+  stateVersion: number;
 }
 
 interface RedemptionValueOutput {
@@ -126,9 +116,6 @@ npm run build
 
 # Run tests
 npm test
-
-# Run linter
-npm run lint
 ```
 
 ## Contributing

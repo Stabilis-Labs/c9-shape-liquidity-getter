@@ -4,7 +4,7 @@
 export interface RedemptionValueInput {
   componentAddress: string;
   nftId: string;
-  stateVersion?: number;
+  stateVersion: number;
 }
 
 /**
@@ -13,7 +13,7 @@ export interface RedemptionValueInput {
 export interface RedemptionValuesInput {
   componentAddress: string;
   nftIds: string[];
-  stateVersion?: number;
+  stateVersion: number;
 }
 
 /**
