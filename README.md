@@ -1,6 +1,6 @@
 # C9 Shape Liquidity Getter
 
-A TypeScript library for calculating redemption values of concentrated liquidity positions on the Radix network.
+A TypeScript library for calculating redemption values of CaviarNine concentrated/shape liquidity positions on the Radix network.
 
 ## Features
 
@@ -26,7 +26,7 @@ import {
 const result = await getRedemptionValue({
   componentAddress: "component_rdx1...", // C9 pool component address
   nftId: "{...}", // NFT ID
-  stateVersion: 123456789, // optional
+  stateVersion: 123456789,
 });
 
 console.log("X Token Amount:", result.xToken);
@@ -36,7 +36,7 @@ console.log("Y Token Amount:", result.yToken);
 const results = await getRedemptionValues({
   componentAddress: "component_rdx1...",
   nftIds: ["{...}", "{...}"],
-  stateVersion: 123456789, // optional
+  stateVersion: 123456789,
 });
 
 for (const [nftId, value] of Object.entries(results)) {
