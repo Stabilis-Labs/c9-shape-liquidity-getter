@@ -1,0 +1,265 @@
+import { Decimal } from "decimal.js";
+import { getC9BinData } from "../utils/c9Data";
+import { getGatewayApi, getNFTDataInChunks } from "./gateway";
+import {
+  RedemptionValueInput,
+  RedemptionValuesInput,
+  RedemptionValueOutput,
+  RedemptionValuesOutput,
+} from "../types";
+import {
+  ValidationError,
+  ComponentError,
+  NFTError,
+  DataError,
+  NetworkError,
+  BaseError,
+} from "../types/errors";
+
+/**
+ * Calculates redemption value for a single NFT using component data
+ */
+function calculateSingleRedemption(
+  nftData: any,
+  c9Data: any
+): RedemptionValueOutput | null {
+  try {
+    const liquidityClaimsField = nftData.fields.find(
+      (f: any) => f.field_name === "liquidity_claims"
+    );
+
+    if (!liquidityClaimsField?.entries) {
+      throw NFTError.invalidClaims(nftData.id || "unknown");
+    }
+
+    // Initialize amounts
+    let amount_x = new Decimal(0);
+    let amount_y = new Decimal(0);
+
+    // Calculate redemption values
+    for (const entry of liquidityClaimsField.entries) {
+      const tick = parseInt(entry.key.value);
+      const claimAmount = entry.value.value;
+
+      if (tick < c9Data.currentTick) {
+        // Bin below current tick - only Y tokens
+        const bin = c9Data.binMapData[tick];
+        if (bin) {
+          const share = new Decimal(claimAmount).div(bin.total_claim);
+          amount_y = amount_y.plus(share.times(bin.amount));
+        }
+      } else if (tick > c9Data.currentTick) {
+        // Bin above current tick - only X tokens
+        const bin = c9Data.binMapData[tick];
+        if (bin) {
+          const share = new Decimal(claimAmount).div(bin.total_claim);
+          amount_x = amount_x.plus(share.times(bin.amount));
+        }
+      } else {
+        // Active bin - both X and Y tokens
+        const liquidityShare = new Decimal(claimAmount).div(
+          c9Data.active_total_claim
+        );
+        amount_x = amount_x.plus(
+          new Decimal(c9Data.active_x).times(liquidityShare)
+        );
+        amount_y = amount_y.plus(
+          new Decimal(c9Data.active_y).times(liquidityShare)
+        );
+      }
+    }
+
+    return {
+      xToken: amount_x.toString(),
+      yToken: amount_y.toString(),
+    };
+  } catch (error) {
+    if (error instanceof NFTError) {
+      throw error;
+    }
+    console.error("Error calculating single redemption value:", error);
+    return null;
+  }
+}
+
+/**
+ * Calculates the redemption value for a single NFT position
+ * @param input The input parameters containing componentAddress, nftId, and optional stateVersion
+ * @returns A promise that resolves to the redemption values or null if calculation fails
+ */
+export async function getRedemptionValue(
+  input: RedemptionValueInput
+): Promise<RedemptionValueOutput | null> {
+  try {
+    const { componentAddress, nftId, stateVersion } = input;
+
+    // Type validation
+    if (typeof componentAddress !== "string") {
+      throw ValidationError.invalidComponentAddress(componentAddress);
+    }
+    if (typeof nftId !== "string") {
+      throw ValidationError.invalidNftId(nftId);
+    }
+    if (stateVersion !== undefined && typeof stateVersion !== "number") {
+      throw ValidationError.invalidStateVersion(stateVersion);
+    }
+
+    // 1. Get all C9 data
+    let c9Data;
+    try {
+      c9Data = await getC9BinData(componentAddress, stateVersion);
+    } catch (error: any) {
+      if (error instanceof DataError) {
+        throw error;
+      }
+      if (
+        error?.details?.validation_errors?.[0]?.errors?.[0]?.includes(
+          "beyond the end"
+        )
+      ) {
+        throw DataError.stateVersionTooHigh(stateVersion || 0);
+      }
+      if (error?.code === 400) {
+        throw NetworkError.requestFailed(error.message, error.code);
+      }
+      throw ComponentError.notC9Component(componentAddress);
+    }
+
+    if (!c9Data) {
+      throw ComponentError.notC9Component(componentAddress);
+    }
+    if (!c9Data.currentTick) {
+      throw ComponentError.missingField(componentAddress, "currentTick");
+    }
+
+    // 2. Get NFT data
+    const api = getGatewayApi();
+    const nftDataMap = await getNFTDataInChunks(
+      [nftId],
+      c9Data.nftAddress,
+      api,
+      stateVersion
+    ).catch((error) => {
+      if (error?.code === 400) {
+        throw NetworkError.requestFailed(error.message, error.code);
+      }
+      return {} as Record<string, any>;
+    });
+
+    const nftData = nftDataMap[nftId];
+    if (!nftData) {
+      throw NFTError.notFound(nftId);
+    }
+
+    // 3. Calculate redemption value
+    const result = calculateSingleRedemption(nftData, c9Data);
+    if (!result) {
+      throw DataError.invalidFormat("redemption calculation");
+    }
+    return result;
+  } catch (error) {
+    if (error instanceof BaseError) {
+      throw error;
+    }
+    console.error("Error calculating redemption value:", error);
+    throw ComponentError.notC9Component(input.componentAddress);
+  }
+}
+
+/**
+ * Calculates redemption values for multiple NFT positions
+ * @param input The input parameters containing componentAddress, array of nftIds, and optional stateVersion
+ * @returns A promise that resolves to an object mapping nftIds to their redemption values
+ */
+export async function getRedemptionValues(
+  input: RedemptionValuesInput
+): Promise<RedemptionValuesOutput> {
+  try {
+    const { componentAddress, nftIds, stateVersion } = input;
+
+    // Type validation
+    if (typeof componentAddress !== "string") {
+      throw ValidationError.invalidComponentAddress(componentAddress);
+    }
+    if (!Array.isArray(nftIds)) {
+      throw ValidationError.invalidNftIds();
+    }
+    if (!nftIds.every((id) => typeof id === "string")) {
+      throw ValidationError.invalidNftIds();
+    }
+    if (stateVersion !== undefined && typeof stateVersion !== "number") {
+      throw ValidationError.invalidStateVersion(stateVersion);
+    }
+
+    const results: RedemptionValuesOutput = {};
+
+    // 1. Get component data (only once for all NFTs)
+    let c9Data;
+    try {
+      c9Data = await getC9BinData(componentAddress, stateVersion);
+    } catch (error: any) {
+      if (error instanceof DataError) {
+        throw error;
+      }
+      if (
+        error?.details?.validation_errors?.[0]?.errors?.[0]?.includes(
+          "beyond the end"
+        )
+      ) {
+        throw DataError.stateVersionTooHigh(stateVersion || 0);
+      }
+      if (error?.code === 400) {
+        throw NetworkError.requestFailed(error.message, error.code);
+      }
+      throw ComponentError.notC9Component(componentAddress);
+    }
+
+    if (!c9Data) {
+      throw ComponentError.notC9Component(componentAddress);
+    }
+    if (!c9Data.currentTick) {
+      throw ComponentError.missingField(componentAddress, "currentTick");
+    }
+
+    // 2. Get NFT data in chunks
+    const api = getGatewayApi();
+    const nftDataMap = await getNFTDataInChunks(
+      nftIds,
+      c9Data.nftAddress,
+      api,
+      stateVersion
+    ).catch((error) => {
+      if (error?.code === 400) {
+        throw NetworkError.requestFailed(error.message, error.code);
+      }
+      return {} as Record<string, any>;
+    });
+
+    // 3. Calculate redemption values for each NFT
+    for (const nftId of nftIds) {
+      const nftData = nftDataMap[nftId];
+      if (nftData) {
+        try {
+          const redemptionValue = calculateSingleRedemption(nftData, c9Data);
+          if (redemptionValue) {
+            results[nftId] = redemptionValue;
+          }
+        } catch (error) {
+          console.error(
+            `Error calculating redemption for NFT ${nftId}:`,
+            error
+          );
+          // Continue processing other NFTs even if one fails
+        }
+      }
+    }
+
+    return results;
+  } catch (error) {
+    if (error instanceof BaseError) {
+      throw error;
+    }
+    console.error("Error calculating redemption values:", error);
+    throw ComponentError.notC9Component(input.componentAddress);
+  }
+}
