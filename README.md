@@ -7,7 +7,6 @@ A TypeScript library for calculating redemption values of CaviarNine concentrate
 - Calculate redemption values (X and Y tokens) for a single NFT position
 - Determine whether shape liquidity includes liquidity in the active bin
 - Batch calculate redemption values for multiple NFT positions
-- Precise decimal calculations using decimal.js
 - Optional price bounds to calculate redemption values within specific price ranges relative to current price
 
 ## Installation
