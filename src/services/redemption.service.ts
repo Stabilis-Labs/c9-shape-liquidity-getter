@@ -179,7 +179,7 @@ export async function getRedemptionValue(
     if (typeof nftId !== "string") {
       throw ValidationError.invalidNftId(nftId);
     }
-    if (stateVersion !== undefined && typeof stateVersion !== "number") {
+    if (typeof stateVersion !== "number") {
       throw ValidationError.invalidStateVersion(stateVersion);
     }
     if (priceBounds !== undefined) {
@@ -219,7 +219,7 @@ export async function getRedemptionValue(
           "beyond the end"
         )
       ) {
-        throw DataError.stateVersionTooHigh(stateVersion || 0);
+        throw DataError.stateVersionTooHigh(stateVersion);
       }
       if (error?.code === 400) {
         throw NetworkError.requestFailed(error.message, error.code);
@@ -295,7 +295,7 @@ export async function getRedemptionValues(
     if (!nftIds.every((id) => typeof id === "string")) {
       throw ValidationError.invalidNftIds();
     }
-    if (stateVersion !== undefined && typeof stateVersion !== "number") {
+    if (typeof stateVersion !== "number") {
       throw ValidationError.invalidStateVersion(stateVersion);
     }
     if (priceBounds !== undefined) {
@@ -337,7 +337,7 @@ export async function getRedemptionValues(
           "beyond the end"
         )
       ) {
-        throw DataError.stateVersionTooHigh(stateVersion || 0);
+        throw DataError.stateVersionTooHigh(stateVersion);
       }
       if (error?.code === 400) {
         throw NetworkError.requestFailed(error.message, error.code);

@@ -30,7 +30,7 @@ import {
 const result = await getRedemptionValue({
   componentAddress: "component_rdx1...", // C9 pool component address
   nftId: "{...}", // NFT ID
-  stateVersion: 123456789,
+  stateVersion: 123456789, // Required: State version to query
 });
 
 console.log("X Token Amount:", result.xToken);
@@ -70,7 +70,7 @@ The library throws specific error types:
 interface RedemptionValueInput {
   componentAddress: string;
   nftId: string;
-  stateVersion?: number;
+  stateVersion: number; // Required: State version to query
   priceBounds?: [number, number]; // Optional: [lowerMultiplier, upperMultiplier]
   middlePrice?: number; // Optional: Override current price for calculations
 }
@@ -78,7 +78,7 @@ interface RedemptionValueInput {
 interface RedemptionValuesInput {
   componentAddress: string;
   nftIds: string[];
-  stateVersion?: number;
+  stateVersion: number; // Required: State version to query
   priceBounds?: [number, number]; // Optional: [lowerMultiplier, upperMultiplier]
   middlePrice?: number; // Optional: Override current price for calculations
 }

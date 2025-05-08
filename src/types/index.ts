@@ -4,7 +4,7 @@
 export interface RedemptionValueInput {
   componentAddress: string;
   nftId: string;
-  stateVersion?: number;
+  stateVersion: number;
   priceBounds?: [number, number]; // [lowerMultiplier, upperMultiplier]
   middlePrice?: number; // Optional override for current price
 }
@@ -15,7 +15,7 @@ export interface RedemptionValueInput {
 export interface RedemptionValuesInput {
   componentAddress: string;
   nftIds: string[];
-  stateVersion?: number;
+  stateVersion: number;
   priceBounds?: [number, number]; // [lowerMultiplier, upperMultiplier]
   middlePrice?: number; // Optional override for current price
 }
