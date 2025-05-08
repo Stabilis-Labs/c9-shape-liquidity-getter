@@ -15,13 +15,19 @@ import {
   NetworkError,
   BaseError,
 } from "../types/errors";
+import {
+  calculateTick,
+  calculateBinStartTick,
+  calculateBinFraction,
+} from "../utils/tickCalculator";
 
 /**
  * Calculates redemption value for a single NFT using component data
  */
 function calculateSingleRedemption(
   nftData: any,
-  c9Data: any
+  c9Data: any,
+  priceBounds?: [number, number]
 ): RedemptionValueOutput | null {
   try {
     const liquidityClaimsField = nftData.fields.find(
@@ -36,30 +42,82 @@ function calculateSingleRedemption(
     let amount_x = new Decimal(0);
     let amount_y = new Decimal(0);
 
+    // Calculate price bounds ticks if provided
+    let lowerBoundTick: number | undefined;
+    let upperBoundTick: number | undefined;
+    if (priceBounds) {
+      lowerBoundTick = calculateTick(priceBounds[0]);
+      upperBoundTick = calculateTick(priceBounds[1]);
+    }
+
     // Calculate redemption values
     for (const entry of liquidityClaimsField.entries) {
       const tick = parseInt(entry.key.value);
       const claimAmount = entry.value.value;
 
+      // Skip if outside price bounds
+      if (priceBounds && (tick < lowerBoundTick! || tick > upperBoundTick!)) {
+        continue;
+      }
+
       if (tick < c9Data.currentTick) {
         // Bin below current tick - only Y tokens
         const bin = c9Data.binMapData[tick];
         if (bin) {
-          const share = new Decimal(claimAmount).div(bin.total_claim);
+          let share = new Decimal(claimAmount).div(bin.total_claim);
+
+          // Apply bin fraction if price bounds are provided
+          if (priceBounds) {
+            const binStartTick = calculateBinStartTick(tick, c9Data.binSpan);
+            const binFraction = calculateBinFraction(
+              binStartTick,
+              c9Data.binSpan,
+              lowerBoundTick!,
+              upperBoundTick!
+            );
+            share = share.times(binFraction);
+          }
+
           amount_y = amount_y.plus(share.times(bin.amount));
         }
       } else if (tick > c9Data.currentTick) {
         // Bin above current tick - only X tokens
         const bin = c9Data.binMapData[tick];
         if (bin) {
-          const share = new Decimal(claimAmount).div(bin.total_claim);
+          let share = new Decimal(claimAmount).div(bin.total_claim);
+
+          // Apply bin fraction if price bounds are provided
+          if (priceBounds) {
+            const binStartTick = calculateBinStartTick(tick, c9Data.binSpan);
+            const binFraction = calculateBinFraction(
+              binStartTick,
+              c9Data.binSpan,
+              lowerBoundTick!,
+              upperBoundTick!
+            );
+            share = share.times(binFraction);
+          }
+
           amount_x = amount_x.plus(share.times(bin.amount));
         }
       } else {
         // Active bin - both X and Y tokens
-        const liquidityShare = new Decimal(claimAmount).div(
+        let liquidityShare = new Decimal(claimAmount).div(
           c9Data.active_total_claim
         );
+
+        // Apply bin fraction if price bounds are provided
+        if (priceBounds) {
+          const binStartTick = calculateBinStartTick(tick, c9Data.binSpan);
+          const binFraction = calculateBinFraction(
+            binStartTick,
+            c9Data.binSpan,
+            lowerBoundTick!,
+            upperBoundTick!
+          );
+          liquidityShare = liquidityShare.times(binFraction);
+        }
+
         amount_x = amount_x.plus(
           new Decimal(c9Data.active_x).times(liquidityShare)
         );
@@ -84,14 +142,14 @@ function calculateSingleRedemption(
 
 /**
  * Calculates the redemption value for a single NFT position
- * @param input The input parameters containing componentAddress, nftId, and optional stateVersion
+ * @param input The input parameters containing componentAddress, nftId, and optional stateVersion and priceBounds
  * @returns A promise that resolves to the redemption values or null if calculation fails
  */
 export async function getRedemptionValue(
   input: RedemptionValueInput
 ): Promise<RedemptionValueOutput | null> {
   try {
-    const { componentAddress, nftId, stateVersion } = input;
+    const { componentAddress, nftId, stateVersion, priceBounds } = input;
 
     // Type validation
     if (typeof componentAddress !== "string") {
@@ -102,6 +160,20 @@ export async function getRedemptionValue(
     }
     if (stateVersion !== undefined && typeof stateVersion !== "number") {
       throw ValidationError.invalidStateVersion(stateVersion);
+    }
+    if (priceBounds !== undefined) {
+      if (!Array.isArray(priceBounds) || priceBounds.length !== 2) {
+        throw ValidationError.invalidPriceBounds();
+      }
+      if (
+        typeof priceBounds[0] !== "number" ||
+        typeof priceBounds[1] !== "number"
+      ) {
+        throw ValidationError.invalidPriceBounds();
+      }
+      if (priceBounds[0] >= priceBounds[1]) {
+        throw ValidationError.invalidPriceBounds();
+      }
     }
 
     // 1. Get all C9 data
@@ -152,7 +224,7 @@ export async function getRedemptionValue(
     }
 
     // 3. Calculate redemption value
-    const result = calculateSingleRedemption(nftData, c9Data);
+    const result = calculateSingleRedemption(nftData, c9Data, priceBounds);
     if (!result) {
       throw DataError.invalidFormat("redemption calculation");
     }
@@ -168,14 +240,14 @@ export async function getRedemptionValue(
 
 /**
  * Calculates redemption values for multiple NFT positions
- * @param input The input parameters containing componentAddress, array of nftIds, and optional stateVersion
+ * @param input The input parameters containing componentAddress, array of nftIds, and optional stateVersion and priceBounds
  * @returns A promise that resolves to an object mapping nftIds to their redemption values
  */
 export async function getRedemptionValues(
   input: RedemptionValuesInput
 ): Promise<RedemptionValuesOutput> {
   try {
-    const { componentAddress, nftIds, stateVersion } = input;
+    const { componentAddress, nftIds, stateVersion, priceBounds } = input;
 
     // Type validation
     if (typeof componentAddress !== "string") {
@@ -189,6 +261,20 @@ export async function getRedemptionValues(
     }
     if (stateVersion !== undefined && typeof stateVersion !== "number") {
       throw ValidationError.invalidStateVersion(stateVersion);
+    }
+    if (priceBounds !== undefined) {
+      if (!Array.isArray(priceBounds) || priceBounds.length !== 2) {
+        throw ValidationError.invalidPriceBounds();
+      }
+      if (
+        typeof priceBounds[0] !== "number" ||
+        typeof priceBounds[1] !== "number"
+      ) {
+        throw ValidationError.invalidPriceBounds();
+      }
+      if (priceBounds[0] >= priceBounds[1]) {
+        throw ValidationError.invalidPriceBounds();
+      }
     }
 
     const results: RedemptionValuesOutput = {};
@@ -240,7 +326,11 @@ export async function getRedemptionValues(
       const nftData = nftDataMap[nftId];
       if (nftData) {
         try {
-          const redemptionValue = calculateSingleRedemption(nftData, c9Data);
+          const redemptionValue = calculateSingleRedemption(
+            nftData,
+            c9Data,
+            priceBounds
+          );
           if (redemptionValue) {
             results[nftId] = redemptionValue;
           }

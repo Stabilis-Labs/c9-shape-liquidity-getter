@@ -37,6 +37,12 @@ export class ValidationError extends BaseError {
   static invalidStateVersion(value: unknown): ValidationError {
     return new ValidationError("State version must be a number", { value });
   }
+
+  static invalidPriceBounds(): ValidationError {
+    return new ValidationError(
+      "Price bounds must be an array of two numbers where the first number is less than the second"
+    );
+  }
 }
 
 /**

@@ -5,6 +5,7 @@ export interface RedemptionValueInput {
   componentAddress: string;
   nftId: string;
   stateVersion: number;
+  priceBounds?: [number, number]; // [lowerPrice, upperPrice]
 }
 
 /**
@@ -14,6 +15,7 @@ export interface RedemptionValuesInput {
   componentAddress: string;
   nftIds: string[];
   stateVersion: number;
+  priceBounds?: [number, number]; // [lowerPrice, upperPrice]
 }
 
 /**
