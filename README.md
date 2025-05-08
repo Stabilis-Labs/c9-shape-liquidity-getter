@@ -35,6 +35,7 @@ const result = await getRedemptionValue({
 
 console.log("X Token Amount:", result.xToken);
 console.log("Y Token Amount:", result.yToken);
+console.log("Liquidity in active bin:", result.isActive);
 
 // Get redemption values for multiple NFTs
 const results = await getRedemptionValues({
