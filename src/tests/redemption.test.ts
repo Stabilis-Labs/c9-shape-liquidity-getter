@@ -4,6 +4,7 @@ import {
 } from "../services/redemption.service";
 import { TEST_CONFIG } from "./test.config";
 import { ComponentError, NFTError, DataError } from "../types/errors";
+import { ValidationError } from "../types/errors";
 
 describe("Redemption Service Tests", () => {
   // Set longer timeout for real network calls
@@ -21,8 +22,10 @@ describe("Redemption Service Tests", () => {
       expect(result).not.toBeNull();
       expect(result).toHaveProperty("xToken");
       expect(result).toHaveProperty("yToken");
+      expect(result).toHaveProperty("isActive");
       expect(typeof result?.xToken).toBe("string");
       expect(typeof result?.yToken).toBe("string");
+      expect(typeof result?.isActive).toBe("boolean");
     });
 
     test("should handle wrong type component address", async () => {
@@ -32,7 +35,7 @@ describe("Redemption Service Tests", () => {
           nftId: TEST_CONFIG.validNftId,
           stateVersion: TEST_CONFIG.validStateVersion,
         })
-      ).rejects.toThrow("Component address must be a string");
+      ).rejects.toThrow("Invalid component address: 123");
     });
 
     test("should handle random string component address", async () => {
@@ -62,7 +65,7 @@ describe("Redemption Service Tests", () => {
           nftId: TEST_CONFIG.wrongTypeNftId,
           stateVersion: TEST_CONFIG.validStateVersion,
         })
-      ).rejects.toThrow("NFT ID must be a string");
+      ).rejects.toThrow("Invalid NFT ID: 456");
     });
 
     test("should handle random string NFT ID", async () => {
@@ -104,6 +107,141 @@ describe("Redemption Service Tests", () => {
         })
       ).rejects.toThrow(DataError);
     });
+
+    describe("price bounds", () => {
+      test("should successfully calculate redemption value with valid price bounds", async () => {
+        const result = await getRedemptionValue({
+          componentAddress: TEST_CONFIG.validComponentAddress,
+          nftId: TEST_CONFIG.validNftId,
+          stateVersion: TEST_CONFIG.validStateVersion,
+          priceBounds: TEST_CONFIG.validPriceBounds,
+        });
+
+        expect(result).not.toBeNull();
+        expect(result).toHaveProperty("xToken");
+        expect(result).toHaveProperty("yToken");
+        expect(typeof result?.xToken).toBe("string");
+        expect(typeof result?.yToken).toBe("string");
+      });
+
+      test("should successfully calculate redemption value with valid price bounds and middle price", async () => {
+        const result = await getRedemptionValue({
+          componentAddress: TEST_CONFIG.validComponentAddress,
+          nftId: TEST_CONFIG.validNftId,
+          stateVersion: TEST_CONFIG.validStateVersion,
+          priceBounds: TEST_CONFIG.validPriceBounds,
+          middlePrice: TEST_CONFIG.validMiddlePrice,
+        });
+
+        expect(result).not.toBeNull();
+        expect(result).toHaveProperty("xToken");
+        expect(result).toHaveProperty("yToken");
+        expect(typeof result?.xToken).toBe("string");
+        expect(typeof result?.yToken).toBe("string");
+      });
+
+      test("should handle wrong type price bounds", async () => {
+        await expect(
+          getRedemptionValue({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftId: TEST_CONFIG.validNftId,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.wrongType,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle wrong length price bounds", async () => {
+        await expect(
+          getRedemptionValue({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftId: TEST_CONFIG.validNftId,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.wrongLength,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle negative multiplier in price bounds", async () => {
+        await expect(
+          getRedemptionValue({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftId: TEST_CONFIG.validNftId,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.negativeMultiplier,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle zero multiplier in price bounds", async () => {
+        await expect(
+          getRedemptionValue({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftId: TEST_CONFIG.validNftId,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.zeroMultiplier,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle reversed order price bounds", async () => {
+        await expect(
+          getRedemptionValue({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftId: TEST_CONFIG.validNftId,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.reversedOrder,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle equal values in price bounds", async () => {
+        await expect(
+          getRedemptionValue({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftId: TEST_CONFIG.validNftId,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.equalValues,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle wrong type middle price", async () => {
+        await expect(
+          getRedemptionValue({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftId: TEST_CONFIG.validNftId,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.validPriceBounds,
+            middlePrice: TEST_CONFIG.invalidMiddlePrice.wrongType,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle negative middle price", async () => {
+        await expect(
+          getRedemptionValue({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftId: TEST_CONFIG.validNftId,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.validPriceBounds,
+            middlePrice: TEST_CONFIG.invalidMiddlePrice.negative,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle zero middle price", async () => {
+        await expect(
+          getRedemptionValue({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftId: TEST_CONFIG.validNftId,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.validPriceBounds,
+            middlePrice: TEST_CONFIG.invalidMiddlePrice.zero,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+    });
   });
 
   describe("getRedemptionValues", () => {
@@ -122,8 +260,10 @@ describe("Redemption Service Tests", () => {
         expect(result[nftId]).toBeDefined();
         expect(result[nftId]).toHaveProperty("xToken");
         expect(result[nftId]).toHaveProperty("yToken");
+        expect(result[nftId]).toHaveProperty("isActive");
         expect(typeof result[nftId].xToken).toBe("string");
         expect(typeof result[nftId].yToken).toBe("string");
+        expect(typeof result[nftId].isActive).toBe("boolean");
       }
     });
 
@@ -134,7 +274,7 @@ describe("Redemption Service Tests", () => {
           nftIds: TEST_CONFIG.validNftIds,
           stateVersion: TEST_CONFIG.validStateVersion,
         })
-      ).rejects.toThrow("Component address must be a string");
+      ).rejects.toThrow("Invalid component address: 123");
     });
 
     test("should handle random string component address", async () => {
@@ -206,6 +346,151 @@ describe("Redemption Service Tests", () => {
           stateVersion: TEST_CONFIG.futureStateVersion,
         })
       ).rejects.toThrow(DataError);
+    });
+
+    describe("price bounds", () => {
+      test("should successfully calculate redemption values with valid price bounds", async () => {
+        const result = await getRedemptionValues({
+          componentAddress: TEST_CONFIG.validComponentAddress,
+          nftIds: TEST_CONFIG.validNftIds,
+          stateVersion: TEST_CONFIG.validStateVersion,
+          priceBounds: TEST_CONFIG.validPriceBounds,
+        });
+
+        expect(result).toBeDefined();
+        expect(Object.keys(result).length).toBeGreaterThan(0);
+
+        for (const nftId of TEST_CONFIG.validNftIds) {
+          expect(result[nftId]).toBeDefined();
+          expect(result[nftId]).toHaveProperty("xToken");
+          expect(result[nftId]).toHaveProperty("yToken");
+          expect(typeof result[nftId].xToken).toBe("string");
+          expect(typeof result[nftId].yToken).toBe("string");
+        }
+      });
+
+      test("should successfully calculate redemption values with valid price bounds and middle price", async () => {
+        const result = await getRedemptionValues({
+          componentAddress: TEST_CONFIG.validComponentAddress,
+          nftIds: TEST_CONFIG.validNftIds,
+          stateVersion: TEST_CONFIG.validStateVersion,
+          priceBounds: TEST_CONFIG.validPriceBounds,
+          middlePrice: TEST_CONFIG.validMiddlePrice,
+        });
+
+        expect(result).toBeDefined();
+        expect(Object.keys(result).length).toBeGreaterThan(0);
+
+        for (const nftId of TEST_CONFIG.validNftIds) {
+          expect(result[nftId]).toBeDefined();
+          expect(result[nftId]).toHaveProperty("xToken");
+          expect(result[nftId]).toHaveProperty("yToken");
+          expect(typeof result[nftId].xToken).toBe("string");
+          expect(typeof result[nftId].yToken).toBe("string");
+        }
+      });
+
+      test("should handle wrong type price bounds", async () => {
+        await expect(
+          getRedemptionValues({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftIds: TEST_CONFIG.validNftIds,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.wrongType,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle wrong length price bounds", async () => {
+        await expect(
+          getRedemptionValues({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftIds: TEST_CONFIG.validNftIds,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.wrongLength,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle negative multiplier in price bounds", async () => {
+        await expect(
+          getRedemptionValues({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftIds: TEST_CONFIG.validNftIds,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.negativeMultiplier,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle zero multiplier in price bounds", async () => {
+        await expect(
+          getRedemptionValues({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftIds: TEST_CONFIG.validNftIds,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.zeroMultiplier,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle reversed order price bounds", async () => {
+        await expect(
+          getRedemptionValues({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftIds: TEST_CONFIG.validNftIds,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.reversedOrder,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle equal values in price bounds", async () => {
+        await expect(
+          getRedemptionValues({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftIds: TEST_CONFIG.validNftIds,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.invalidPriceBounds.equalValues,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle wrong type middle price", async () => {
+        await expect(
+          getRedemptionValues({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftIds: TEST_CONFIG.validNftIds,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.validPriceBounds,
+            middlePrice: TEST_CONFIG.invalidMiddlePrice.wrongType,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle negative middle price", async () => {
+        await expect(
+          getRedemptionValues({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftIds: TEST_CONFIG.validNftIds,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.validPriceBounds,
+            middlePrice: TEST_CONFIG.invalidMiddlePrice.negative,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
+
+      test("should handle zero middle price", async () => {
+        await expect(
+          getRedemptionValues({
+            componentAddress: TEST_CONFIG.validComponentAddress,
+            nftIds: TEST_CONFIG.validNftIds,
+            stateVersion: TEST_CONFIG.validStateVersion,
+            priceBounds: TEST_CONFIG.validPriceBounds,
+            middlePrice: TEST_CONFIG.invalidMiddlePrice.zero,
+          })
+        ).rejects.toThrow(ValidationError);
+      });
     });
   });
 });

@@ -19,6 +19,7 @@ import {
   calculateTick,
   calculateBinStartTick,
   calculateBinFraction,
+  calculatePrice,
 } from "../utils/tickCalculator";
 
 /**
@@ -27,7 +28,8 @@ import {
 function calculateSingleRedemption(
   nftData: any,
   c9Data: any,
-  priceBounds?: [number, number]
+  priceBounds?: [number, number],
+  middlePrice?: number
 ): RedemptionValueOutput | null {
   try {
     const liquidityClaimsField = nftData.fields.find(
@@ -41,13 +43,29 @@ function calculateSingleRedemption(
     // Initialize amounts
     let amount_x = new Decimal(0);
     let amount_y = new Decimal(0);
+    let isActive = false;
 
     // Calculate price bounds ticks if provided
     let lowerBoundTick: number | undefined;
     let upperBoundTick: number | undefined;
     if (priceBounds) {
-      lowerBoundTick = calculateTick(priceBounds[0]);
-      upperBoundTick = calculateTick(priceBounds[1]);
+      // Calculate the middle price
+      let currentPrice: number;
+      if (middlePrice !== undefined) {
+        currentPrice = middlePrice;
+      } else {
+        // Calculate current price from current tick + half bin span
+        const middleTick = c9Data.currentTick + Math.floor(c9Data.binSpan / 2);
+        currentPrice = parseFloat(calculatePrice(middleTick));
+      }
+
+      // Calculate actual price bounds using multipliers
+      const lowerPrice = currentPrice * priceBounds[0];
+      const upperPrice = currentPrice * priceBounds[1];
+
+      // Convert to ticks
+      lowerBoundTick = calculateTick(lowerPrice);
+      upperBoundTick = calculateTick(upperPrice);
     }
 
     // Calculate redemption values
@@ -102,6 +120,7 @@ function calculateSingleRedemption(
         }
       } else {
         // Active bin - both X and Y tokens
+        isActive = true;
         let liquidityShare = new Decimal(claimAmount).div(
           c9Data.active_total_claim
         );
@@ -130,6 +149,7 @@ function calculateSingleRedemption(
     return {
       xToken: amount_x.toString(),
       yToken: amount_y.toString(),
+      isActive,
     };
   } catch (error) {
     if (error instanceof NFTError) {
@@ -149,7 +169,8 @@ export async function getRedemptionValue(
   input: RedemptionValueInput
 ): Promise<RedemptionValueOutput | null> {
   try {
-    const { componentAddress, nftId, stateVersion, priceBounds } = input;
+    const { componentAddress, nftId, stateVersion, priceBounds, middlePrice } =
+      input;
 
     // Type validation
     if (typeof componentAddress !== "string") {
@@ -174,6 +195,15 @@ export async function getRedemptionValue(
       if (priceBounds[0] >= priceBounds[1]) {
         throw ValidationError.invalidPriceBounds();
       }
+      if (priceBounds[0] <= 0) {
+        throw ValidationError.invalidPriceBounds();
+      }
+    }
+    if (middlePrice !== undefined && typeof middlePrice !== "number") {
+      throw ValidationError.invalidMiddlePrice();
+    }
+    if (middlePrice !== undefined && middlePrice <= 0) {
+      throw ValidationError.invalidMiddlePrice();
     }
 
     // 1. Get all C9 data
@@ -224,7 +254,12 @@ export async function getRedemptionValue(
     }
 
     // 3. Calculate redemption value
-    const result = calculateSingleRedemption(nftData, c9Data, priceBounds);
+    const result = calculateSingleRedemption(
+      nftData,
+      c9Data,
+      priceBounds,
+      middlePrice
+    );
     if (!result) {
       throw DataError.invalidFormat("redemption calculation");
     }
@@ -247,7 +282,8 @@ export async function getRedemptionValues(
   input: RedemptionValuesInput
 ): Promise<RedemptionValuesOutput> {
   try {
-    const { componentAddress, nftIds, stateVersion, priceBounds } = input;
+    const { componentAddress, nftIds, stateVersion, priceBounds, middlePrice } =
+      input;
 
     // Type validation
     if (typeof componentAddress !== "string") {
@@ -275,6 +311,15 @@ export async function getRedemptionValues(
       if (priceBounds[0] >= priceBounds[1]) {
         throw ValidationError.invalidPriceBounds();
       }
+      if (priceBounds[0] <= 0) {
+        throw ValidationError.invalidPriceBounds();
+      }
+    }
+    if (middlePrice !== undefined && typeof middlePrice !== "number") {
+      throw ValidationError.invalidMiddlePrice();
+    }
+    if (middlePrice !== undefined && middlePrice <= 0) {
+      throw ValidationError.invalidMiddlePrice();
     }
 
     const results: RedemptionValuesOutput = {};
@@ -329,7 +374,8 @@ export async function getRedemptionValues(
           const redemptionValue = calculateSingleRedemption(
             nftData,
             c9Data,
-            priceBounds
+            priceBounds,
+            middlePrice
           );
           if (redemptionValue) {
             results[nftId] = redemptionValue;

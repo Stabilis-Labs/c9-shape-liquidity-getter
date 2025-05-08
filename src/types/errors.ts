@@ -22,25 +22,31 @@ export class ValidationError extends BaseError {
     super(message, "VALIDATION_ERROR", 400, details);
   }
 
-  static invalidComponentAddress(value: unknown): ValidationError {
-    return new ValidationError("Component address must be a string", { value });
+  static invalidComponentAddress(address: any) {
+    return new ValidationError(`Invalid component address: ${address}`);
   }
 
-  static invalidNftId(value: unknown): ValidationError {
-    return new ValidationError("NFT ID must be a string", { value });
+  static invalidNftId(id: any) {
+    return new ValidationError(`Invalid NFT ID: ${id}`);
   }
 
-  static invalidNftIds(): ValidationError {
-    return new ValidationError("NFT IDs must be an array of strings");
+  static invalidNftIds() {
+    return new ValidationError("Invalid NFT IDs array");
   }
 
-  static invalidStateVersion(value: unknown): ValidationError {
-    return new ValidationError("State version must be a number", { value });
+  static invalidStateVersion(version: any) {
+    return new ValidationError(`Invalid state version: ${version}`);
   }
 
-  static invalidPriceBounds(): ValidationError {
+  static invalidPriceBounds() {
     return new ValidationError(
-      "Price bounds must be an array of two numbers where the first number is less than the second"
+      "Invalid price bounds. Must be [lowerMultiplier, upperMultiplier] where lowerMultiplier > 0 and lowerMultiplier < upperMultiplier"
+    );
+  }
+
+  static invalidMiddlePrice() {
+    return new ValidationError(
+      "Invalid middle price. Must be a positive number"
     );
   }
 }

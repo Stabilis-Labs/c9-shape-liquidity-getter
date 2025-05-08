@@ -14,6 +14,23 @@ export const TEST_CONFIG = {
     "{08d7651c3a99f0b7-15c931044acadc57-0dd62a027cf55086-7c11c6f8a4b76438}",
   ],
 
+  // Price bounds test data
+  validPriceBounds: [0.95, 1.05] as [number, number],
+  validMiddlePrice: 1.0,
+  invalidPriceBounds: {
+    wrongType: [0.95, "1.05"] as any,
+    wrongLength: [0.95] as any,
+    negativeMultiplier: [-0.95, 1.05] as [number, number],
+    zeroMultiplier: [0, 1.05] as [number, number],
+    reversedOrder: [1.05, 0.95] as [number, number],
+    equalValues: [1.0, 1.0] as [number, number],
+  },
+  invalidMiddlePrice: {
+    wrongType: "1.0" as any,
+    negative: -1.0,
+    zero: 0,
+  },
+
   // Invalid data
   wrongTypeComponentAddress: 123 as any,
   randomStringComponentAddress: "not_a_component_address",

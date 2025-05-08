@@ -5,9 +5,10 @@ A TypeScript library for calculating redemption values of CaviarNine concentrate
 ## Features
 
 - Calculate redemption values (X and Y tokens) for a single NFT position
+- Determine whether shape liquidity includes liquidity in the active bin
 - Batch calculate redemption values for multiple NFT positions
 - Precise decimal calculations using decimal.js
-- Optional price bounds to calculate redemption values within specific price ranges
+- Optional price bounds to calculate redemption values within specific price ranges relative to current price
 
 ## Installation
 
@@ -16,6 +17,8 @@ npm install @stabilis/c9-shape-liquidity-getter
 ```
 
 ## Usage
+
+Without price bounds (see bottom for what those are):
 
 ```typescript
 import {
@@ -28,7 +31,6 @@ const result = await getRedemptionValue({
   componentAddress: "component_rdx1...", // C9 pool component address
   nftId: "{...}", // NFT ID
   stateVersion: 123456789,
-  priceBounds: [0.1, 1.0], // Optional: Calculate redemption values within price range
 });
 
 console.log("X Token Amount:", result.xToken);
@@ -39,13 +41,13 @@ const results = await getRedemptionValues({
   componentAddress: "component_rdx1...",
   nftIds: ["{...}", "{...}"],
   stateVersion: 123456789,
-  priceBounds: [0.1, 1.0], // Optional: Calculate redemption values within price range
 });
 
 for (const [nftId, value] of Object.entries(results)) {
   console.log(`NFT ${nftId}:`);
   console.log("X Token Amount:", value.xToken);
   console.log("Y Token Amount:", value.yToken);
+  console.log("Liquidity in active bin:", value.isActive);
 }
 ```
 
@@ -67,20 +69,23 @@ The library throws specific error types:
 interface RedemptionValueInput {
   componentAddress: string;
   nftId: string;
-  stateVersion: number;
-  priceBounds?: [number, number]; // Optional: [lowerPrice, upperPrice]
+  stateVersion?: number;
+  priceBounds?: [number, number]; // Optional: [lowerMultiplier, upperMultiplier]
+  middlePrice?: number; // Optional: Override current price for calculations
 }
 
 interface RedemptionValuesInput {
   componentAddress: string;
   nftIds: string[];
-  stateVersion: number;
-  priceBounds?: [number, number]; // Optional: [lowerPrice, upperPrice]
+  stateVersion?: number;
+  priceBounds?: [number, number]; // Optional: [lowerMultiplier, upperMultiplier]
+  middlePrice?: number; // Optional: Override current price for calculations
 }
 
 interface RedemptionValueOutput {
   xToken: string;
   yToken: string;
+  isActive: boolean; // Indicates if the redemption includes liquidity from the active bin
 }
 
 interface RedemptionValuesOutput {
@@ -114,19 +119,34 @@ Calculates redemption values for multiple NFT positions. Returns an object mappi
 
 The library supports calculating redemption values within specific price ranges using the optional `priceBounds` parameter. When provided, the library will:
 
-1. Convert the price bounds to ticks using the formula: `tick = ln(price / MIN_PRICE) / ln(TICK_SIZE)`
-2. Only include liquidity from bins that fall within the price bounds
-3. For bins that partially overlap with the price bounds, calculate the fraction of liquidity to include based on the bin span
+1. Calculate the current price by:
+   - Using the provided `middlePrice` if specified
+   - Otherwise, calculating from the current tick + half bin span (this is approximately the current price of the pair according to the shape liquidity pool)
+2. Apply the price bound multipliers to get the actual price range:
+   - Lower bound = current price \* priceBounds[0]
+   - Upper bound = current price \* priceBounds[1]
+3. Convert the price bounds to ticks
+4. Only include liquidity from bins that fall within the price bounds
+5. For bins that partially overlap with the price bounds, calculate the fraction of liquidity to include based on the bin span
 
 Example:
 
 ```typescript
-// Calculate redemption values for prices between 0.1 and 1.0
+// Calculate redemption values for prices between 95% and 105% of current price
 const result = await getRedemptionValue({
   componentAddress: "component_rdx1...",
   nftId: "{...}",
   stateVersion: 123456789,
-  priceBounds: [0.1, 1.0],
+  priceBounds: [0.95, 1.05],
+});
+
+// Calculate redemption values for prices between 95% and 105% of a specific price
+const result = await getRedemptionValue({
+  componentAddress: "component_rdx1...",
+  nftId: "{...}",
+  stateVersion: 123456789,
+  priceBounds: [0.95, 1.05],
+  middlePrice: 1.0,
 });
 ```
 
