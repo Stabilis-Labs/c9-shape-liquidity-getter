@@ -11,7 +11,6 @@ import {
   StateKeyValueStoreDataResponseItem,
 } from "@radixdlt/babylon-gateway-api-sdk";
 
-// TODO: making the network configurable
 const CURRENT_NETWORK = RadixNetwork.Mainnet;
 
 // Helper function to break an array into chunks
@@ -34,7 +33,6 @@ export const getGatewayApi = () => {
   });
 };
 
-// Type for the initialized Gateway API client for convenience
 export type GatewayApi = ReturnType<typeof GatewayApiClient.initialize>;
 
 /**
@@ -111,7 +109,6 @@ export const getAllKeyValueStoreKeys = async (
     const response: StateKeyValueStoreKeysResponse =
       await api.state.innerClient.keyValueStoreKeys({
         stateKeyValueStoreKeysRequest: {
-          // Request object for innerClient
           key_value_store_address: keyValueStoreAddress,
           at_ledger_state: ledgerState,
           cursor: currentCursor,
@@ -236,16 +233,14 @@ export const getComponentData = async (
   const options: StateEntityDetailsOptions = {};
 
   try {
-    // Corrected call signature: addresses[], options, ledgerState
     const responseItems = await api.state.getEntityDetailsVaultAggregated(
       [componentAddress],
       options,
       ledgerState
     );
 
-    // The response is directly an array of StateEntityDetailsResponseItem
     if (responseItems && responseItems.length > 0) {
-      return responseItems[0]; // Return details for the requested component
+      return responseItems[0];
     } else {
       console.warn(`No component data found for address: ${componentAddress}`);
       return null;
@@ -255,6 +250,6 @@ export const getComponentData = async (
       `Error fetching component data for ${componentAddress}:`,
       error
     );
-    throw error; // Re-throw the error or handle it as appropriate
+    throw error;
   }
 };

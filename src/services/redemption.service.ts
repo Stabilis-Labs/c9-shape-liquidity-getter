@@ -206,10 +206,13 @@ export async function getRedemptionValue(
       throw ValidationError.invalidMiddlePrice();
     }
 
+    // Initialize API once
+    const api = getGatewayApi();
+
     // 1. Get all C9 data
     let c9Data;
     try {
-      c9Data = await getC9BinData(componentAddress, stateVersion);
+      c9Data = await getC9BinData(componentAddress, stateVersion, api);
     } catch (error: any) {
       if (error instanceof DataError) {
         throw error;
@@ -235,7 +238,6 @@ export async function getRedemptionValue(
     }
 
     // 2. Get NFT data
-    const api = getGatewayApi();
     const nftDataMap = await getNFTDataInChunks(
       [nftId],
       c9Data.nftAddress,
@@ -324,10 +326,13 @@ export async function getRedemptionValues(
 
     const results: RedemptionValuesOutput = {};
 
+    // Initialize API once
+    const api = getGatewayApi();
+
     // 1. Get component data (only once for all NFTs)
     let c9Data;
     try {
-      c9Data = await getC9BinData(componentAddress, stateVersion);
+      c9Data = await getC9BinData(componentAddress, stateVersion, api);
     } catch (error: any) {
       if (error instanceof DataError) {
         throw error;
@@ -353,7 +358,6 @@ export async function getRedemptionValues(
     }
 
     // 2. Get NFT data in chunks
-    const api = getGatewayApi();
     const nftDataMap = await getNFTDataInChunks(
       nftIds,
       c9Data.nftAddress,

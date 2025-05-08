@@ -2,8 +2,7 @@ import {
   getComponentData,
   getAllKeyValueStoreKeys,
   fetchKeyValueStoreDataInChunks,
-  getGatewayApi,
-  getNFTData,
+  GatewayApi,
 } from "../services/gateway";
 import {
   LedgerStateSelector,
@@ -95,7 +94,8 @@ interface NFTData {
 
 export async function getC9BinData(
   componentAddress: string,
-  stateVersion?: number
+  stateVersion: number,
+  gatewayApi: GatewayApi
 ): Promise<{
   componentData: StateEntityDetailsResponseItem;
   binMapData: C9BinMapData;
@@ -107,25 +107,19 @@ export async function getC9BinData(
   binSpan: number;
 } | null> {
   try {
-    const api = getGatewayApi();
-
     // Validate state version before proceeding
-    if (stateVersion !== undefined) {
-      const currentStateVersion = await api.status
-        .getCurrent()
-        .then((response) => response.ledger_state.state_version);
-      if (stateVersion > currentStateVersion) {
-        throw DataError.stateVersionTooHigh(stateVersion);
-      }
+    const currentStateVersion = await gatewayApi.status
+      .getCurrent()
+      .then((response) => response.ledger_state.state_version);
+    if (stateVersion > currentStateVersion) {
+      throw DataError.stateVersionTooHigh(stateVersion);
     }
 
-    const ledgerState: LedgerStateSelector | undefined = stateVersion
-      ? { state_version: stateVersion }
-      : undefined;
+    const ledgerState: LedgerStateSelector = { state_version: stateVersion };
 
     // 1. Get component data
     const componentData = await getComponentData(
-      api,
+      gatewayApi,
       componentAddress,
       stateVersion
     );
@@ -187,7 +181,7 @@ export async function getC9BinData(
 
     // 3. Get all keys from the KV store
     const keys = await getAllKeyValueStoreKeys(
-      api,
+      gatewayApi,
       kvStoreAddress,
       ledgerState
     );
@@ -196,7 +190,7 @@ export async function getC9BinData(
     const rawBinMapData = await fetchKeyValueStoreDataInChunks(
       kvStoreAddress,
       keys,
-      api,
+      gatewayApi,
       ledgerState
     );
 
@@ -238,94 +232,6 @@ export async function getC9BinData(
       throw error;
     }
     console.error("Error in getC9BinData:", error);
-    throw error;
-  }
-}
-
-export async function calculateRedemptionValue(
-  componentAddress: string,
-  nftId: string,
-  stateVersion: number
-): Promise<RedemptionValue | null> {
-  try {
-    // 1. Get all C9 data
-    const c9Data = await getC9BinData(componentAddress, stateVersion);
-    if (!c9Data || !c9Data.currentTick) {
-      console.error("Failed to get C9 data or current tick not available");
-      return null;
-    }
-
-    // 2. Get NFT data
-    const api = getGatewayApi();
-    const nftDataResponse = await getNFTData(
-      api,
-      c9Data.nftAddress,
-      nftId,
-      stateVersion
-    );
-    if (!nftDataResponse?.[0]?.data?.programmatic_json) {
-      console.error("Failed to get NFT data");
-      return null;
-    }
-
-    // 3. Extract liquidity claims from NFT data
-    const nftData = nftDataResponse[0].data.programmatic_json as NFTData;
-    const liquidityClaimsField = nftData.fields.find(
-      (f) => f.field_name === "liquidity_claims"
-    );
-
-    if (!liquidityClaimsField?.entries) {
-      console.error("No liquidity claims found in NFT data");
-      return null;
-    }
-
-    // Initialize amounts
-    let amount_x = "0";
-    let amount_y = "0";
-
-    // 4. Calculate redemption values
-    for (const entry of liquidityClaimsField.entries) {
-      const tick = parseInt(entry.key.value);
-      const claimAmount = entry.value.value;
-
-      if (tick < c9Data.currentTick) {
-        // Bin below current tick - only Y tokens
-        const bin = c9Data.binMapData[tick];
-        if (bin) {
-          const share = new Decimal(claimAmount).div(bin.total_claim);
-          amount_y = new Decimal(amount_y)
-            .plus(share.times(bin.amount))
-            .toString();
-        }
-      } else if (tick > c9Data.currentTick) {
-        // Bin above current tick - only X tokens
-        const bin = c9Data.binMapData[tick];
-        if (bin) {
-          const share = new Decimal(claimAmount).div(bin.total_claim);
-          amount_x = new Decimal(amount_x)
-            .plus(share.times(bin.amount))
-            .toString();
-        }
-      } else {
-        // Active bin - both X and Y tokens
-        const liquidityShare = new Decimal(claimAmount).div(
-          c9Data.active_total_claim
-        );
-        amount_x = new Decimal(amount_x)
-          .plus(new Decimal(c9Data.active_x).times(liquidityShare))
-          .toString();
-        amount_y = new Decimal(amount_y)
-          .plus(new Decimal(c9Data.active_y).times(liquidityShare))
-          .toString();
-      }
-    }
-
-    return {
-      amount_x,
-      amount_y,
-    };
-  } catch (error) {
-    console.error("Error calculating redemption value:", error);
     throw error;
   }
 }
