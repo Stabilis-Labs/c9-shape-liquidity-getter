@@ -9,9 +9,11 @@ import {
   StateEntityDetailsResponseItem,
   StateEntityDetailsOptions,
   StateKeyValueStoreDataResponseItem,
+  StateNonFungibleDetailsResponseItem,
 } from "@radixdlt/babylon-gateway-api-sdk";
 
-const CURRENT_NETWORK = RadixNetwork.Mainnet;
+// C9 contracts only exist on Mainnet
+const NETWORK = RadixNetwork.Mainnet;
 
 // Helper function to break an array into chunks
 function chunkArray<T>(array: T[], chunkSize: number): T[][] {
@@ -29,7 +31,7 @@ function chunkArray<T>(array: T[], chunkSize: number): T[][] {
 export const getGatewayApi = () => {
   return GatewayApiClient.initialize({
     applicationName: "Radix Liquidity Calculator Lib",
-    networkId: CURRENT_NETWORK,
+    networkId: NETWORK,
   });
 };
 
@@ -99,11 +101,7 @@ export const getAllKeyValueStoreKeys = async (
   let currentCursor: string | undefined = undefined;
   let hasMore = true;
 
-  console.log(
-    `Fetching all keys for KVS: ${keyValueStoreAddress} at ledger state: ${
-      ledgerState ? JSON.stringify(ledgerState) : "latest"
-    }`
-  );
+  // Keys retrieval in progress
 
   while (hasMore) {
     const response: StateKeyValueStoreKeysResponse =
@@ -126,7 +124,6 @@ export const getAllKeyValueStoreKeys = async (
       hasMore = false;
     }
   }
-  console.log(`Found ${allKeys.length} keys for KVS: ${keyValueStoreAddress}`);
   return allKeys;
 };
 
@@ -144,13 +141,7 @@ export const getNFTData = async (
   nftAddress: string,
   nftId: string,
   stateVersion?: number
-): Promise<any> => {
-  // TODO: Define a more specific return type
-  console.log(
-    `Fetching NFT data for resource: ${nftAddress}, ID: ${nftId} at state version: ${
-      stateVersion || "latest"
-    }`
-  );
+): Promise<StateNonFungibleDetailsResponseItem[]> => {
   const ledgerStateSelector = stateVersion
     ? { state_version: stateVersion }
     : undefined;
@@ -171,22 +162,22 @@ export const getNFTData = async (
  * @param chunkSize Maximum number of NFTs to fetch in one request
  * @returns A record mapping NFT IDs to their data
  */
-export async function getNFTDataInChunks(
+export const getNFTDataInChunks = async (
   nftIds: string[],
   nftAddress: string,
   api: GatewayApi,
   stateVersion?: number,
   chunkSize: number = 100
-): Promise<Record<string, any>> {
+): Promise<Record<string, object>> => {
   const chunks = chunkArray(nftIds, chunkSize);
-  const allNftData: Record<string, any> = {};
+  const allNftData: Record<string, object> = {};
 
   for (const chunk of chunks) {
     const chunkPromises = chunk.map((nftId) =>
       getNFTData(api, nftAddress, nftId, stateVersion)
         .then((data) => ({ nftId, data: data?.[0]?.data?.programmatic_json }))
         .catch((error) => {
-          console.error(`Failed to get data for NFT ${nftId}:`, error);
+          // Error fetching NFT data, returning null for this NFT
           return { nftId, data: null };
         })
     );
@@ -206,7 +197,7 @@ export async function getNFTDataInChunks(
   }
 
   return allNftData;
-}
+};
 
 /**
  * Fetches detailed data for a component using getEntityDetailsVaultAggregated.
@@ -221,12 +212,6 @@ export const getComponentData = async (
   componentAddress: string,
   stateVersion?: number
 ): Promise<StateEntityDetailsResponseItem | null> => {
-  console.log(
-    `Fetching component data for: ${componentAddress} at state version: ${
-      stateVersion || "latest"
-    }`
-  );
-
   const ledgerState = stateVersion
     ? { state_version: stateVersion }
     : undefined;
@@ -242,14 +227,11 @@ export const getComponentData = async (
     if (responseItems && responseItems.length > 0) {
       return responseItems[0];
     } else {
-      console.warn(`No component data found for address: ${componentAddress}`);
+      // No component data found
       return null;
     }
   } catch (error) {
-    console.error(
-      `Error fetching component data for ${componentAddress}:`,
-      error
-    );
+    // Error with API call, propagate error
     throw error;
   }
 };

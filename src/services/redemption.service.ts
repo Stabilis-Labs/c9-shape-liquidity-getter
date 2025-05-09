@@ -247,7 +247,7 @@ export async function getRedemptionValue(
       if (error?.code === 400) {
         throw NetworkError.requestFailed(error.message, error.code);
       }
-      return {} as Record<string, any>;
+      return {} as Record<string, object>;
     });
 
     const nftData = nftDataMap[nftId];
@@ -367,7 +367,7 @@ export async function getRedemptionValues(
       if (error?.code === 400) {
         throw NetworkError.requestFailed(error.message, error.code);
       }
-      return {} as Record<string, any>;
+      return {} as Record<string, object>;
     });
 
     // 3. Calculate redemption values for each NFT
