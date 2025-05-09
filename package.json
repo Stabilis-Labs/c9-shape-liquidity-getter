@@ -1,6 +1,6 @@
 {
   "name": "@stabilis/c9-shape-liquidity-getter",
-  "version": "1.0.10",
+  "version": "1.1.0",
   "description": "A library for calculating redemption values of concentrated liquidity positions for C9 shape liquidity.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -55,5 +55,13 @@
       "<rootDir>/dist/",
       "<rootDir>/node_modules/"
     ]
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stabilis-labs/c9-shape-liquidity-getter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/stabilis-labs/c9-shape-liquidity-getter/issues"
+  },
+  "homepage": "https://github.com/stabilis-labs/c9-shape-liquidity-getter#readme"
 }
