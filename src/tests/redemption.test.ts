@@ -28,6 +28,34 @@ describe("Redemption Service Tests", () => {
       expect(typeof result?.isActive).toBe("boolean");
     });
 
+    test("should output values with exactly 18 decimal places", async () => {
+      const result = await getRedemptionValue({
+        componentAddress: TEST_CONFIG.validComponentAddress,
+        nftId: TEST_CONFIG.validNftId,
+        stateVersion: TEST_CONFIG.validStateVersion,
+      });
+
+      expect(result).not.toBeNull();
+      
+      // Check if xToken has exactly 18 decimal places
+      const xTokenParts = result!.xToken.split('.');
+      if (xTokenParts.length > 1) {
+        expect(xTokenParts[1].length).toBe(18);
+      } else {
+        // For integers, should end with 18 zeros
+        expect(result!.xToken.endsWith('.000000000000000000')).toBe(true);
+      }
+      
+      // Check if yToken has exactly 18 decimal places
+      const yTokenParts = result!.yToken.split('.');
+      if (yTokenParts.length > 1) {
+        expect(yTokenParts[1].length).toBe(18);
+      } else {
+        // For integers, should end with 18 zeros
+        expect(result!.yToken.endsWith('.000000000000000000')).toBe(true);
+      }
+    });
+
     test("should handle wrong type component address", async () => {
       await expect(
         getRedemptionValue({
@@ -264,6 +292,39 @@ describe("Redemption Service Tests", () => {
         expect(typeof result[nftId].xToken).toBe("string");
         expect(typeof result[nftId].yToken).toBe("string");
         expect(typeof result[nftId].isActive).toBe("boolean");
+      }
+    });
+
+    test("should output all values with exactly 18 decimal places in batch mode", async () => {
+      const result = await getRedemptionValues({
+        componentAddress: TEST_CONFIG.validComponentAddress,
+        nftIds: TEST_CONFIG.validNftIds,
+        stateVersion: TEST_CONFIG.validStateVersion,
+      });
+
+      expect(result).toBeDefined();
+      expect(Object.keys(result).length).toBeGreaterThan(0);
+
+      for (const nftId of TEST_CONFIG.validNftIds) {
+        expect(result[nftId]).toBeDefined();
+        
+        // Check if xToken has exactly 18 decimal places
+        const xTokenParts = result[nftId].xToken.split('.');
+        if (xTokenParts.length > 1) {
+          expect(xTokenParts[1].length).toBe(18);
+        } else {
+          // For integers, should end with 18 zeros
+          expect(result[nftId].xToken.endsWith('.000000000000000000')).toBe(true);
+        }
+        
+        // Check if yToken has exactly 18 decimal places
+        const yTokenParts = result[nftId].yToken.split('.');
+        if (yTokenParts.length > 1) {
+          expect(yTokenParts[1].length).toBe(18);
+        } else {
+          // For integers, should end with 18 zeros
+          expect(result[nftId].yToken.endsWith('.000000000000000000')).toBe(true);
+        }
       }
     });
 

@@ -12,6 +12,7 @@ import {
 } from "@radixdlt/babylon-gateway-api-sdk";
 import { Decimal } from "decimal.js";
 import { DataError } from "../types/errors";
+import { I192 } from "./i192";
 
 interface ComponentField {
   kind: string;
@@ -210,21 +211,30 @@ export async function getC9BinData(
           fields.find((f: ScryptoField) => f.field_name === "total_claim")
             ?.value || "0";
 
+        // Process the values using I192, but store as string for API compatibility
+        const amountI192 = new I192(amount);
+        const totalClaimI192 = new I192(totalClaim);
+
         binMapData[parseInt(tick)] = {
-          amount,
-          total_claim: totalClaim,
+          amount: amountI192.toString(),
+          total_claim: totalClaimI192.toString(),
         };
       }
     }
+
+    // Process active X and Y values using I192
+    const activeX = new I192(activeXField.value);
+    const activeY = new I192(activeYField.value);
+    const activeTotalClaim = new I192(activeTotalClaimField.value);
 
     return {
       componentData,
       binMapData,
       nftAddress: nftManagerField.value,
       currentTick,
-      active_x: activeXField.value,
-      active_y: activeYField.value,
-      active_total_claim: activeTotalClaimField.value,
+      active_x: activeX.toString(),
+      active_y: activeY.toString(),
+      active_total_claim: activeTotalClaim.toString(),
       binSpan,
     };
   } catch (error) {

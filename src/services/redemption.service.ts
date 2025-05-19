@@ -21,6 +21,7 @@ import {
   calculateBinFraction,
   calculatePrice,
 } from "../utils/tickCalculator";
+import { I192 } from "../utils/i192";
 
 /**
  * Calculates redemption value for a single NFT using component data
@@ -40,9 +41,9 @@ function calculateSingleRedemption(
       throw NFTError.invalidClaims(nftData.id || "unknown");
     }
 
-    // Initialize amounts
-    let amount_x = new Decimal(0);
-    let amount_y = new Decimal(0);
+    // Initialize amounts using I192
+    let amount_x = I192.zero();
+    let amount_y = I192.zero();
     let isActive = false;
 
     // Calculate price bounds ticks if provided
@@ -63,7 +64,7 @@ function calculateSingleRedemption(
       const lowerPrice = currentPrice * priceBounds[0];
       const upperPrice = currentPrice * priceBounds[1];
 
-      // Convert to ticks
+      // Convert to ticks - this is a tick calculation, so we don't use I192
       lowerBoundTick = calculateTick(lowerPrice);
       upperBoundTick = calculateTick(upperPrice);
     }
@@ -82,7 +83,7 @@ function calculateSingleRedemption(
         // Bin below current tick - only Y tokens
         const bin = c9Data.binMapData[tick];
         if (bin) {
-          let share = new Decimal(claimAmount).div(bin.total_claim);
+          let share = new I192(claimAmount).divide(bin.total_claim);
 
           // Apply bin fraction if price bounds are provided
           if (priceBounds) {
@@ -93,16 +94,16 @@ function calculateSingleRedemption(
               lowerBoundTick!,
               upperBoundTick!
             );
-            share = share.times(binFraction);
+            share = share.multiply(binFraction);
           }
 
-          amount_y = amount_y.plus(share.times(bin.amount));
+          amount_y = amount_y.add(share.multiply(bin.amount));
         }
       } else if (tick > c9Data.currentTick) {
         // Bin above current tick - only X tokens
         const bin = c9Data.binMapData[tick];
         if (bin) {
-          let share = new Decimal(claimAmount).div(bin.total_claim);
+          let share = new I192(claimAmount).divide(bin.total_claim);
 
           // Apply bin fraction if price bounds are provided
           if (priceBounds) {
@@ -113,15 +114,15 @@ function calculateSingleRedemption(
               lowerBoundTick!,
               upperBoundTick!
             );
-            share = share.times(binFraction);
+            share = share.multiply(binFraction);
           }
 
-          amount_x = amount_x.plus(share.times(bin.amount));
+          amount_x = amount_x.add(share.multiply(bin.amount));
         }
       } else {
         // Active bin - both X and Y tokens
         isActive = true;
-        let liquidityShare = new Decimal(claimAmount).div(
+        let liquidityShare = new I192(claimAmount).divide(
           c9Data.active_total_claim
         );
 
@@ -134,14 +135,14 @@ function calculateSingleRedemption(
             lowerBoundTick!,
             upperBoundTick!
           );
-          liquidityShare = liquidityShare.times(binFraction);
+          liquidityShare = liquidityShare.multiply(binFraction);
         }
 
-        amount_x = amount_x.plus(
-          new Decimal(c9Data.active_x).times(liquidityShare)
+        amount_x = amount_x.add(
+          new I192(c9Data.active_x).multiply(liquidityShare)
         );
-        amount_y = amount_y.plus(
-          new Decimal(c9Data.active_y).times(liquidityShare)
+        amount_y = amount_y.add(
+          new I192(c9Data.active_y).multiply(liquidityShare)
         );
       }
     }
