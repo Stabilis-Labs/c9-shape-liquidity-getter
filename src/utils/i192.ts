@@ -1,5 +1,9 @@
 import { Decimal } from "decimal.js";
 
+// Configure Decimal.js to handle higher precision
+// We need at least 40 digits of precision to safely handle 18 decimal places during calculations
+Decimal.set({ precision: 40, rounding: Decimal.ROUND_DOWN });
+
 /**
  * I192 class to mimic Scrypto Decimal's I192 behavior
  * 
@@ -239,10 +243,14 @@ export class I192 {
 
   /**
    * Returns a string representation with full 18 decimal places
-   * Always formats with exactly 18 decimal places to mimic Scrypto Decimal
+   * Format matches Scrypto Decimal's exact precision
    */
   public toString(): string {
-    return this.value.toFixed(I192.DECIMALS);
+    // Use decimal.js toFixed to get exact decimal precision
+    // toFixed returns a string with the exact number of decimal places
+    const stringValue = this.value.toFixed(I192.DECIMALS);
+    
+    return stringValue;
   }
 
   /**

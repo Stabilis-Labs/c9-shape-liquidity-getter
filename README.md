@@ -120,19 +120,21 @@ Calculates redemption values for multiple NFT positions. Returns an object mappi
 
 This library implements a specialized I192 decimal type to match the precision behavior of Scrypto's Decimal type, which is used in the CaviarNine smart contracts. Key features include:
 
-1. **Fixed 18 Decimal Places**: All values are represented with exactly 18 decimal places.
+1. **Fixed 18 Decimal Places**: All values are represented with exactly 18 decimal places without rounding.
 
 2. **Truncation Rounding**: After each mathematical operation, the result is truncated toward zero to exactly 18 decimal places. This means:
    - For positive numbers: digits beyond 18 decimal places are truncated (floor)
    - For negative numbers: digits beyond 18 decimal places are truncated (ceiling)
 
-3. **Exact Match**: This approach ensures the library's calculations exactly match the results produced by the on-chain smart contracts.
+3. **Exact Match**: This approach ensures the library's calculations exactly match the results produced by the on-chain smart contracts. The library uses an enhanced precision model (40 digits) internally to ensure that even complex calculations maintain exact precision.
 
 4. **Value Range**: The I192 type enforces the same value range constraints as Scrypto's Decimal:
    - Max: 3138550867693340381917894711603833208051.177722232017256447
    - Min: -3138550867693340381917894711603833208051.177722232017256448
 
-All output values from the library (xToken and yToken) are provided as strings with exactly 18 decimal places, maintaining the precision of the on-chain calculations.
+5. **Precise String Representation**: All output values from the library (xToken and yToken) are provided as strings with exactly 18 decimal places, preserving the exact precision without any rounding. This ensures redemption values match exactly what the on-chain contract would calculate.
+
+When comparing values, keep in mind that the entire 18 decimal places are significant and preserved exactly as calculated on-chain.
 
 ## Price Bounds
 
